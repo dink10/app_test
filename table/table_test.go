@@ -194,6 +194,61 @@ func TestTableWithAllowingSpaces(t *testing.T) {
 	}
 }
 
+func TestTableWithAllowingAnyFields(t *testing.T) {
+	testHeaders := []string{ColumnInt, ColumnString, ColumnMoney, "any"}
+	testRows := [][]string{
+		{"1", "aaaaaa bbb ccc", "1000.33", "aaaaaa bbb ccc tttttttt"},
+		{"7", "aaaaaa bbb", "", ""},
+		{"", "aaaaaa", "10000", "tttttttt"},
+	}
+
+	specs := []struct {
+		alignments []Alignment
+		rows       [][]string
+		expOutput  string
+	}{
+		{
+			alignments: []Alignment{AlignLeft, AlignLeft, AlignRight, AlignLeft},
+			rows:       testRows,
+			expOutput: `+-+------+---------+-----------------------+
+|1|aaaaaa| 1 000,33|aaaaaa bbb ccc tttttttt|
+| |bbb   |         |                       |
+| |ccc   |         |                       |
++-+------+---------+-----------------------+
+|7|aaaaaa|         |                       |
+| |bbb   |         |                       |
++-+------+---------+-----------------------+
+| |aaaaaa|10 000,00|tttttttt               |
++-+------+---------+-----------------------+
+`,
+		},
+	}
+
+	var buf bytes.Buffer
+	for specIndex, spec := range specs {
+		table := New(len(testHeaders), true)
+		for hIndex, header := range testHeaders {
+			table.SetColumn(hIndex, header, spec.alignments[hIndex])
+		}
+		if err := table.Append(spec.rows...); err != nil {
+			t.Error(err)
+		}
+
+		buf.Reset()
+		table.Write(&buf)
+		tableOutput := buf.String()
+
+		if tableOutput != spec.expOutput {
+			t.Errorf(
+				"[spec %d]\n expected output to be: \n%s\n got:\n%s\n",
+				specIndex,
+				indent(spec.expOutput, 2),
+				indent(tableOutput, 2),
+			)
+		}
+	}
+}
+
 func indent(s string, pad int) string {
 	return regexp.MustCompile("(?m)^").ReplaceAllString(s, strings.Repeat(" ", pad))
 }
